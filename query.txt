@@ -1,0 +1,92 @@
+About: 
+
+ select account_id, about, vision, headquarter, primary_vertical, verticals, account_subverticals, employee_count, year_established, founders, account_type, rnd_workforce from draup.accounts 
+
+ 
+
+Financials:
+
+ select account_id, owner_name , share_percentage from draup.account_financials_shareholdings where share_percentage > 1
+select account_id, account_priorities from draup.account_priorities_aggregated 
+
+ 
+
+Outsourcing:
+
+ select account_id, outsourcing_in_workloads, engaged_vendor_locations from draup.account_outsourcing_intensity 
+
+ 
+
+Partnership:
+
+ select account_id, investee_name, investment_date, investment_type, amount, round from draup.account_investments 
+select account_id, acquiree_name, acquired_date, acquired_location, acquisition_size, acquisition_primary_intent  from draup.account_acquisitions 
+
+ 
+
+Hiring: {FOR EACH ACCOUNT_ID}
+
+select job_title_lemmatized, count(*) as job_postings from draup.draup.job_descriptions where account_id = 75137 and job_post_date >= CURRENT_DATE - INTERVAL '1 year' and job_title_lemmatized is not null and length(job_title_lemmatized) > 0 group by job_title_lemmatized order by job_postings desc
+
+select DATE_TRUNC('month', job_post_date::timestamp)::date AS month, COUNT(*) AS count from draup.draup.job_descriptions WHERE account_id = 75137 and job_post_date >= CURRENT_DATE - INTERVAL '1 year' GROUP by DATE_TRUNC('month', job_post_date::timestamp) ORDER by month desc;
+
+
+
+Workforce attrition: [ACCOUNT_ID wise]
+
+ select job_title, count(*) total_count from workforce_by_job_titles where account_id = 75137 and type = 'attrition' and hiring_attrition_date >= CURRENT_DATE - INTERVAL '1 year' group by job_title order by total_count desc;
+select location, count(*) total_count from workforce_by_location where account_id = 75137 and type = 'attrition' and hiring_attrition_date >= CURRENT_DATE - INTERVAL '1 year' group by location order by total_count desc;
+SELECT wtc.targeted_account_id, ac.account_name, count(*) total_count from workforce_targeted_company as wtc JOIN accounts as ac ON ac.account_id = wtc.targeted_account_id WHERE wtc.account_id = 75137 AND wtc.type = 'attrition' AND wtc.hiring_attrition_date >= CURRENT_DATE - INTERVAL '1 year' GROUP BY wtc.targeted_account_id, ac.account_name ORDER by total_count DESC;
+
+ 
+
+Digital Techstack Category & Product: [ACCOUNT_ID wise]
+
+ SELECT a.account_id, tsc.tech_stack_category, tsp.tech_stack_product, a.tech_stack_category_id, a.tech_stack_product_id FROM core_accounttechstackmapping a JOIN tech_stack_categories tsc ON a.tech_stack_category_id = tsc.tech_stack_category_id JOIN tech_stack_products tsp ON a.tech_stack_product_id = tsp.tech_stack_product_id WHERE a.account_id = 75137 AND a.date_created >= CURRENT_DATE - INTERVAL '1 year'
+
+
+
+
+
+Maslow Hiearchy [ACCOUNT_ID wise]:
+
+ select ae.account_id, ae.maslow_parameter_score, mtm.maslow_category, mtm.maslow_parameter, mtm.maslow_hierarchy, ae.maslow_parameter_id from draup_django.accounts_employervaluepropositionindex as ae join draup_django.maslowtaxonomymaster as mtm on ae.maslow_parameter_id = mtm.id where ae.maslow_parameter_score <=7.5  and ae.account_id = 75132
+
+
+
+
+Attrition:
+
+select account_id, sum(workforce_count) as total_num from draup.workforce_by_hiring_and_attrition where type = 'attrition' and hiring_attrition_date >= CURRENT_DATE - INTERVAL '1 year' group by account_id
+
+
+
+select account_id, job_title_lemmatized, job_postings
+
+from (
+
+  select account_id, job_title_lemmatized, job_postings,
+
+         RANK() over (partition by job_title_lemmatized order by job_postings desc) as rnk
+
+  from (
+
+    select account_id, job_title_lemmatized, COUNT(*) as job_postings
+
+    from draup.draup.job_descriptions
+
+    where job_title_lemmatized IS NOT NULL
+
+      and LENGTH(job_title_lemmatized) > 0
+
+      and job_post_date >= CURRENT_DATE - INTERVAL '1 year'
+
+    group by account_id, job_title_lemmatized
+
+  ) as counts
+
+) as ranked
+
+where rnk = 1
+
+order by account_id, job_title_lemmatized;
